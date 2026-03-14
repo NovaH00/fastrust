@@ -1,33 +1,57 @@
-/// Normalize an HTTP path by removing trailing slashes.
+/// Canonicalize an HTTP path by collapsing duplicate slashes and removing
+/// trailing slashes.
 ///
-/// This function trims all trailing `/` characters from the provided path
-/// while preserving the root path (`"/"`). If trimming would result in an
-/// empty string (which happens when the input is `"/"` or consists only of
-/// slashes), the function returns `"/"`.
+/// This function normalizes a path into a single canonical representation by:
 ///
-/// This is useful when normalizing routes so that paths like `/api/`,
-/// `/api//`, and `/api///` are treated the same as `/api`.
+/// - Collapsing consecutive `/` characters into a single `/`
+/// - Removing trailing slashes
+/// - Preserving the root path (`"/"`)
+///
+/// If normalization would result in an empty string (which happens when the
+/// input contains only slashes), the function returns `"/"`.
+///
+/// This ensures that logically equivalent paths map to the same canonical
+/// value. For example, `/api`, `/api/`, `/api//`, and `/api///` all normalize
+/// to `/api`.
+///
 ///
 /// # Examples
 ///
 /// ```
-/// assert_eq!(normalize_path("/api///"), "/api");
-/// assert_eq!(normalize_path("/api/"), "/api");
-/// assert_eq!(normalize_path("/api"), "/api");
-/// assert_eq!(normalize_path("/"), "/");
-/// assert_eq!(normalize_path("///"), "/");
+/// assert_eq!(canonicalize_path("/api"), "/api");
+/// assert_eq!(canonicalize_path("/api/"), "/api");
+/// assert_eq!(canonicalize_path("/api///"), "/api");
+/// assert_eq!(canonicalize_path("/api//users"), "/api/users");
+/// assert_eq!(canonicalize_path("///api///users//"), "/api/users");
+/// assert_eq!(canonicalize_path("/"), "/");
+/// assert_eq!(canonicalize_path("///"), "/");
 /// ```
 ///
 /// # Notes
 ///
-/// - Only trailing slashes are removed.
-/// - Internal slashes (e.g., `/api//users`) are left unchanged.
-/// - The returned value borrows from the input and does not allocate.
-pub fn normalize_path(path: &str) -> &str {
-    let trimmed = path.trim_end_matches('/');
+/// - Consecutive slashes are collapsed into a single `/`.
+/// - Trailing slashes are removed except for the root path.
+/// - The function allocates a new `String` to produce the normalized path.
+pub fn canonicalize_path(path: &str) -> String {
+    let mut result = String::with_capacity(path.len());
+    let mut prev_was_slash = false;
+
+    for c in path.chars() {
+        if c == '/' {
+            if !prev_was_slash {
+                result.push('/');
+            }
+            prev_was_slash = true;
+        } else {
+            result.push(c);
+            prev_was_slash = false;
+        }
+    }
+
+    let trimmed = result.trim_end_matches('/');
     if trimmed.is_empty() {
-        "/"
+        "/".to_string()
     } else {
-        trimmed
+        trimmed.to_string()
     }
 }

@@ -1,7 +1,7 @@
 use axum::{routing::{get, post, put, patch, delete}, handler::Handler};
 use crate::{
     route::{Method, Route},
-    normalize_path
+    canonicalize_path
 };
  
 
@@ -12,27 +12,6 @@ pub struct APIRouter<S = ()> {
 }
 
 impl APIRouter<()> {
-    pub fn new(prefix: &str) -> Self {
-        Self {
-            prefix: normalize_path(prefix).to_owned(),
-            routes: Vec::new(),
-        }
-    }
-    
-    // This is a debug function
-    pub fn show_data(&self) {
-        println!("Prefix: {}", self.prefix);
-        for v in &self.routes {
-            match v.method {
-                Method::Get    => println!("GET {}", v.path),
-                Method::Post   => println!("POST {}", v.path),
-                Method::Put    => println!("PUT {}", v.path),
-                Method::Patch  => println!("PATCH {}", v.path),
-                Method::Delete => println!("DELETE {}", v.path)
-            }
-        } 
-    }
-    
     pub fn add_route(&mut self, route: Route) {
         self.routes.push(route);
     }
@@ -53,6 +32,13 @@ impl<S> APIRouter<S>
 where
     S: Clone + Send + Sync + 'static, // Axum requires these bounds for State
 {
+    pub fn new(prefix: &str) -> Self {
+        Self {
+            prefix: canonicalize_path(prefix),
+            routes: Vec::new(),
+        }
+    }
+
     pub fn get<H, T>(&mut self, path: &str, handler: H) -> &Self
     where
         H: Handler<T, S>,
@@ -61,7 +47,7 @@ where
         let combined_path = self.prefix.clone() + path; 
         let route = Route { 
             method: Method::Get,
-            path: normalize_path(&combined_path).to_owned(),
+            path: canonicalize_path(&combined_path),
             handler: get(handler) 
         };
         self.routes.push(route);
@@ -76,7 +62,7 @@ where
         let combined_path = self.prefix.clone() + path; 
         let route = Route { 
             method: Method::Post,
-            path: normalize_path(&combined_path).to_owned(),
+            path: canonicalize_path(&combined_path),
             handler: post(handler) 
         };
 
@@ -93,7 +79,7 @@ where
         let combined_path = self.prefix.clone() + path; 
         let route = Route { 
             method: Method::Put,
-            path: normalize_path(&combined_path).to_owned(),
+            path: canonicalize_path(&combined_path),
             handler: put(handler) 
         };
 
@@ -109,7 +95,7 @@ where
         let combined_path = self.prefix.clone() + path; 
         let route = Route { 
             method: Method::Patch,
-            path: normalize_path(&combined_path).to_owned(),
+            path: canonicalize_path(&combined_path),
             handler: patch(handler) 
         };
 
@@ -125,7 +111,7 @@ where
         let combined_path = self.prefix.clone() + path; 
         let route = Route { 
             method: Method::Delete,
-            path: normalize_path(&combined_path).to_owned(),
+            path: canonicalize_path(&combined_path),
             handler: delete(handler) 
         };
 

@@ -10,9 +10,9 @@ keywords = ["web", "framework", "axum", "api"]
 categories = ["web-programming"]
 
 [dependencies]
-axum = "0.8.8"
+axum = { version = "0.8.8", features = ["macros"] } 
 log = "0.4.29"
-serde = "1.0.228"
+serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.50.0", features = ["full"] }
 tower = "0.5.3"
 tower-http = { version = "0.6.8", features = ["trace", "normalize-path"] }

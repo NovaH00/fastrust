@@ -4,23 +4,29 @@ use tower_http::normalize_path::NormalizePathLayer;
 use crate::router::APIRouter;
 use crate::middleware::log_request;
 use std::net::SocketAddr;
+use tracing::{info, warn, error};
 
 #[derive(Debug)]
-pub struct APIApp {
+pub struct APIApp<S = ()> 
+where 
+    S: Clone + Send + Sync + 'static,
+{
     title:        Option<String>,
     summary:      Option<String>,
     description:  Option<String>,
     version:      String,
     openapi_path: String,
     docs_path:    String,
+    state:        S,
 
-    host:         String,
-    port:         i32,
+    host:         Option<String>,
+    port:         Option<i32>,
 
     routers:      Vec<APIRouter>,
 }
 
-impl Default for APIApp {
+impl Default for APIApp<()> 
+{
     fn default() -> Self {
         Self {
             title:        None,
@@ -29,21 +35,26 @@ impl Default for APIApp {
             version:      "0.0.1".to_owned(),
             openapi_path: "/openapi.json".to_owned(),
             docs_path:    "/docs".to_owned(),
+            state:        (),
 
-            host:         "127.0.0.1".to_owned(),
-            port:         6969,
+            host:         None,
+            port:         None,
 
-            routers: Vec::new(),
+            routers:      Vec::new(),
         }
     }
 }
 
-
-impl APIApp {
+impl APIApp<()> {
     pub fn new() -> Self {
-        Self::default() 
+        Self::default()
     }
+}
 
+impl<S> APIApp<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
     pub fn set_title(mut self, title: &str) -> Self {
         self.title = Some(title.to_owned());
         self
@@ -75,12 +86,12 @@ impl APIApp {
     }
 
     pub fn set_host(mut self, host: &str) -> Self {
-        self.host = host.to_owned();
+        self.host = Some(host.to_owned());
         self
     }
 
     pub fn set_port(mut self, port: i32) -> Self {
-        self.port = port;
+        self.port = Some(port);
         self
     }
 
@@ -90,67 +101,66 @@ impl APIApp {
     }
 
     pub async fn run(self) {
-        let mut router = Router::<()>::new();
+        tracing_subscriber::fmt().with_target(false).init();
 
-        println!("Registering paths:");
-        for api_router in self.routers {
-            for route in api_router.routes {
-                router = router.route(&route.path, route.handler);
-                println!("\t{} {}", route.method, route.path);
-            }
-        }
-
-        let router = router.layer(middleware::from_fn(log_request));
-        let app = NormalizePathLayer::trim_trailing_slash().layer(router);
+        let host = match self.host {
+            None => {
+                info!("No host provided; defaulting to 127.0.0.1.");
+                "127.0.0.1".to_owned()
+            },
+            Some(h) =>  h 
+        }; 
+        
+        let port = match self.port {
+            None => {
+                info!("No port provided; defaulting to 6969.");
+                6969
+            },
+            Some(p) => p 
+        };
 
         // Parse socket address
-        let addr: SocketAddr = format!("{}:{}", self.host, self.port)
+        let addr: SocketAddr = format!("{}:{}", host, port)
             .parse()
-            .unwrap_or_else(|e| {
-                eprint!(
-                    "ERROR: Failed to parse socket address.\n\
-                        host: `{}`\n\
-                        port: `{}`\n\
-                        error: {}\n",
-                    self.host,
-                    self.port,
-                    e
-                );
+            .unwrap_or_else(|err| {
+                error!("Failed to parse socket address `{host}:{port}`; {err}");
                 std::process::exit(1);
             });
 
         // Bind TCP listener
         let listener = tokio::net::TcpListener::bind(addr)
             .await
-            .unwrap_or_else(|e| {
-                eprint!(
-                    "ERROR: Failed to bind TCP listener.\n\
-                        address: `{}`\n\
-                        error: {}\n\
-                        Possible causes:\n\
-                        - Port already in use\n\
-                        - Insufficient permissions\n\
-                        - Invalid network interface",
-                    addr,
-                    e
-                );
+            .unwrap_or_else(|err| { 
+                error!("Failed to bind TCP listener to `{addr}`; {err}");
                 std::process::exit(1);
             });
 
-        println!("Server is listening on {}:{}", self.host, self.port);
+        
+        let mut router = Router::new().with_state(self.state);
 
-        // Start server
+        if self.routers.is_empty() {
+            warn!("No router registered; incoming requests will not be handled.")
+        }
+        else {
+            info!("Registering paths from {} routers:", self.routers.len());
+            for api_router in self.routers {
+                for route in api_router.routes {
+                    router = router.route(&route.path, route.handler);
+                    info!("\t{} {}", route.method, route.path);
+                }
+            }
+        }
+
+        let router = router.layer(middleware::from_fn(log_request));
+        let app = NormalizePathLayer::trim_trailing_slash().layer(router);
+        
+        info!("Server initialized.");
+        info!("Server is listening on {}:{}.", host, port);
         axum::serve(listener, axum::ServiceExt::<axum::extract::Request>::into_make_service(app))
-        .await
-        .unwrap_or_else(|e| {
-            eprint!(
-                "ERROR: Axum server crashed.\n\
-                    address: `{}`\n\
-                    error: {}",
-                addr,
-                e
-            );
-            std::process::exit(1);
-        });
+            .await
+            .unwrap_or_else(|err| {
+                error!("Axum server crashed; {err}");
+                std::process::exit(1);
+            });
     }
 }
