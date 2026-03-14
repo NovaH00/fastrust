@@ -1,10 +1,10 @@
 use axum::{Router, middleware};
-use tower::Layer;
 use tower_http::normalize_path::NormalizePathLayer;
 use crate::router::APIRouter;
 use crate::middleware::log_request;
 use std::net::SocketAddr;
 use tracing::{info, warn, error};
+
 
 #[derive(Debug)]
 pub struct APIApp<S = ()> 
@@ -22,7 +22,7 @@ where
     host:         Option<String>,
     port:         Option<i32>,
 
-    routers:      Vec<APIRouter>,
+    routers:      Vec<APIRouter<S>>,
 }
 
 impl Default for APIApp<()> 
@@ -36,25 +36,50 @@ impl Default for APIApp<()>
             openapi_path: "/openapi.json".to_owned(),
             docs_path:    "/docs".to_owned(),
             state:        (),
-
             host:         None,
             port:         None,
-
-            routers:      Vec::new(),
+            routers:      vec![],
         }
     }
 }
 
 impl APIApp<()> {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            title:        None,
+            summary:      None,
+            description:  None,
+            version:      "0.0.1".to_owned(),
+            openapi_path: "/openapi.json".to_owned(),
+            docs_path:    "/docs".to_owned(),
+            state:        (),
+            host:         None,
+            port:         None,
+            routers:      vec![],
+        }
     }
+
 }
 
 impl<S> APIApp<S>
 where
     S: Clone + Send + Sync + 'static,
 {
+    pub fn new_with_state(state: S) -> Self {
+        Self {
+            title:        None,
+            summary:      None,
+            description:  None,
+            version:      "0.0.1".to_owned(),
+            openapi_path: "/openapi.json".to_owned(),
+            docs_path:    "/docs".to_owned(),
+            state,
+            host:         None,
+            port:         None,
+            routers:      vec![],
+        }
+    }
+
     pub fn set_title(mut self, title: &str) -> Self {
         self.title = Some(title.to_owned());
         self
@@ -95,7 +120,7 @@ where
         self
     }
 
-    pub fn register_router(mut self, router: APIRouter) -> Self {
+    pub fn register_router(mut self, router: APIRouter<S>) -> Self {
         self.routers.push(router);
         self     
     }
@@ -135,8 +160,7 @@ where
                 std::process::exit(1);
             });
 
-        
-        let mut router = Router::new().with_state(self.state);
+        let mut axum_router: Router<S> = Router::new();
 
         if self.routers.is_empty() {
             warn!("No router registered; incoming requests will not be handled.")
@@ -145,18 +169,21 @@ where
             info!("Registering paths from {} routers:", self.routers.len());
             for api_router in self.routers {
                 for route in api_router.routes {
-                    router = router.route(&route.path, route.handler);
+                    axum_router = axum_router.route(&route.path, route.handler);
                     info!("\t{} {}", route.method, route.path);
                 }
             }
         }
 
-        let router = router.layer(middleware::from_fn(log_request));
-        let app = NormalizePathLayer::trim_trailing_slash().layer(router);
-        
+        axum_router = axum_router
+            .layer(middleware::from_fn(log_request))
+            .layer(NormalizePathLayer::trim_trailing_slash());
+ 
+        let axum_router = axum_router.with_state(self.state);
+
         info!("Server initialized.");
         info!("Server is listening on {}:{}.", host, port);
-        axum::serve(listener, axum::ServiceExt::<axum::extract::Request>::into_make_service(app))
+        axum::serve(listener, axum_router)
             .await
             .unwrap_or_else(|err| {
                 error!("Axum server crashed; {err}");
