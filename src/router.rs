@@ -48,7 +48,9 @@ where
         self.routes.push(route);
     }
 
-    pub fn include_router(&mut self, router: &APIRouter<S>) {
+    /// Consumes the provided router, adds the routes in that router to self. 
+    /// Also adds the self.prefix to the routes in the consumed router. 
+    pub fn include_router(&mut self, router: APIRouter<S>) {
         for v in &router.routes {
             let combined_path = format!("{}{}", self.prefix, v.path);
             self.add_route(Route {

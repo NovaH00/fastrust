@@ -45,20 +45,8 @@ impl Default for APIApp<()>
 
 impl APIApp<()> {
     pub fn new() -> Self {
-        Self {
-            title:        None,
-            summary:      None,
-            description:  None,
-            version:      "0.0.1".to_owned(),
-            openapi_path: "/openapi.json".to_owned(),
-            docs_path:    "/docs".to_owned(),
-            state:        (),
-            host:         None,
-            port:         None,
-            routers:      vec![],
-        }
+        Self::default() 
     }
-
 }
 
 impl<S> APIApp<S>
