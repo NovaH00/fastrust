@@ -2,11 +2,7 @@
 
 A FastAPI-inspired web framework for building APIs quickly in Rust.
 
-> ⚠️ **Work in Progress** - This library is currently under active development.
-
-## Releases
-- 0.1.0: Initial release
-- 0.2.0: Add app state support
+> ⚠️ **WIP** - This library is currently under active development.
 
 ## Installation
 ```bash
@@ -58,14 +54,6 @@ async fn main() {
 }
 ```
 
-```bash
-$ cargo run
-Registering paths:
-	GET /v1
-	GET /v1/api/hello/{name}
-Server is listening on 0.0.0.0:6969
-```
-
 ### With app state
 ```rust
 // main.rs
@@ -93,7 +81,7 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
-    let mut root = APIRouter::<AppState>::new("/");
+    let mut root = APIRouter::new("/");
     root.get("/increment/{n}", increment);
 
     let state = AppState {
@@ -116,6 +104,13 @@ Counter incremented by 69. Current value 101
 $ curl localhost:6969/increment/20
 Counter incremented by 20. Current value 121
 ```
+
+## TODOs
+- [] Add documents generation (openapi.json, swagger UI,...)
+
+## Releases
+- 0.1.0: Initial release
+- 0.2.0: Add app state support
 
 ## License
 MIT
