@@ -4,6 +4,10 @@ A FastAPI-inspired web framework for building APIs quickly in Rust.
 
 > ⚠️ **Work in Progress** - This library is currently under active development.
 
+## Releases
+- 0.1.0: Initial release
+- 0.2.0: Add app state support
+
 ## Installation
 ```bash
 cargo add fastrust
@@ -18,6 +22,7 @@ cargo add fastrust
 
 ## Quick Start
 
+### Basic usage
 ```rust
 // main.rs
 use fastrust::{APIApp, APIRouter};
@@ -61,6 +66,56 @@ Registering paths:
 Server is listening on 0.0.0.0:6969
 ```
 
-## License
+### With app state
+```rust
+// main.rs
+use fastrust::{APIApp, APIRouter};
+use axum::extract::{State, Path};
+use std::sync::{Arc, Mutex};
 
+async fn increment(
+    Path(n): Path<i32>,
+    State(s): State<AppState>
+) -> String {
+    if let Ok(mut counter) = s.counter.lock() {
+        *counter += n;
+        format!("Counter incremented by {n}. Current value {}\n", *counter)
+
+    } else {
+       "Cannot aquire counter\n".to_string() 
+    }   
+}
+
+#[derive(Clone)]
+struct AppState {
+    counter: Arc<Mutex<i32>>,
+}
+
+#[tokio::main]
+async fn main() {
+    let mut root = APIRouter::<AppState>::new("/");
+    root.get("/increment/{n}", increment);
+
+    let state = AppState {
+        counter: Arc::new(Mutex::new(0))
+    };
+
+    APIApp::new_with_state(state)
+        .set_title("fastrust app") 
+        .register_router(root)
+        .run().await;
+}
+```
+```bash
+$ curl localhost:6969/increment/32
+Counter incremented by 32. Current value 32
+
+$ curl localhost:6969/increment/69
+Counter incremented by 69. Current value 101
+
+$ curl localhost:6969/increment/20
+Counter incremented by 20. Current value 121
+```
+
+## License
 MIT
