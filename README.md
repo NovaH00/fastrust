@@ -43,7 +43,7 @@ async fn main() {
     v1.get("/", root);
 
     // Combine routers - endpoints become /v1/api/hello/{name}
-    v1.include_router(&api);
+    v1.include_router(api);
 
     APIApp::new()
         .set_title("fastrust app")
