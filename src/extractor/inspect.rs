@@ -1,6 +1,19 @@
-use super::extractor::{ExtractorKind, ExtractorMeta};
+use super::kind::{ExtractorKind, ExtractorMeta};
 
+/// Trait for inspecting handler function signatures.
+///
+/// This trait is automatically implemented for handler function signatures
+/// (tuples of extractors) and is used to extract metadata for OpenAPI
+/// documentation generation.
+///
+/// # Examples
+///
+/// The trait is implemented for handler signatures like:
+/// - `fn handler() -> String` (no extractors)
+/// - `fn handler(Path(i32)) -> String` (single extractor)
+/// - `fn handler(Path(i32), Json<User>) -> String` (multiple extractors)
 pub trait InspectSignature {
+    /// Returns a vector of extractor kinds for this handler signature.
     fn extractors() -> Vec<ExtractorKind>;
 }
 
@@ -15,7 +28,6 @@ macro_rules! impl_inspect_signature {
     ( $head:ident $(, $tail:ident)* ) => {
         impl<M, $head $(, $tail)*> InspectSignature for (M, $head $(, $tail)*)
         where
-            // Enforce that every argument implements our trait!
             $head: ExtractorMeta,
             $( $tail: ExtractorMeta ),*
         {

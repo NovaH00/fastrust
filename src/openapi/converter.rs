@@ -6,8 +6,21 @@ use openapiv3::{
     StringType, Type, VariantOrUnknownOrEmpty, ObjectType,
 };
 
-/// Converts our internal ParamType into an OpenAPI v3 ParameterSchemaOrContent.
-pub fn param_type_to_openapi_v3(kind: &ParamType, format: &Option<String>) -> ParameterSchemaOrContent {
+/// Converts a [`ParamType`] into an OpenAPI v3 `ParameterSchemaOrContent`.
+///
+/// This function is used internally by fastrust to convert extracted field
+/// type information into OpenAPI schema definitions.
+///
+/// # Arguments
+///
+/// * `kind` - The parameter type category
+/// * `format` - Optional format specifier (e.g., "int32", "uuid")
+///
+/// # Returns
+///
+/// An OpenAPI `ParameterSchemaOrContent` that can be used in parameter
+/// or schema definitions.
+pub fn param_type_to_openapi_schema(kind: &ParamType, format: &Option<String>) -> ParameterSchemaOrContent {
     let schema_kind = match kind {
         ParamType::Integer => SchemaKind::Type(Type::Integer(IntegerType {
             format: format_to_integer(format),
@@ -61,8 +74,7 @@ pub fn param_type_to_openapi_v3(kind: &ParamType, format: &Option<String>) -> Pa
     }))
 }
 
-// --- Helper functions for VariantOrUnknownOrEmpty formats ---
-
+/// Converts an optional format string to an OpenAPI integer format.
 fn format_to_integer(f: &Option<String>) -> VariantOrUnknownOrEmpty<IntegerFormat> {
     match f {
         Some(s) if s == "int32" => VariantOrUnknownOrEmpty::Item(IntegerFormat::Int32),
@@ -72,6 +84,7 @@ fn format_to_integer(f: &Option<String>) -> VariantOrUnknownOrEmpty<IntegerForma
     }
 }
 
+/// Converts an optional format string to an OpenAPI string format.
 fn format_to_string(f: &Option<String>) -> VariantOrUnknownOrEmpty<StringFormat> {
     match f {
         Some(s) if s == "date" => VariantOrUnknownOrEmpty::Item(StringFormat::Date),
@@ -84,6 +97,7 @@ fn format_to_string(f: &Option<String>) -> VariantOrUnknownOrEmpty<StringFormat>
     }
 }
 
+/// Converts an optional format string to an OpenAPI number format.
 fn format_to_number(f: &Option<String>) -> VariantOrUnknownOrEmpty<NumberFormat> {
     match f {
         Some(s) if s == "float" => VariantOrUnknownOrEmpty::Item(NumberFormat::Float),

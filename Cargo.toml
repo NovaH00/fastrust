@@ -1,6 +1,6 @@
 [package]
 name = "fastrust"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2024"
 description = "A lightweight API framework built on top of Axum, inspired by FastAPI"
 license = "MIT"

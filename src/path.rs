@@ -1,3 +1,5 @@
+//! Path utility functions.
+
 /// Canonicalize an HTTP path by collapsing duplicate slashes and removing
 /// trailing slashes.
 ///
@@ -14,10 +16,11 @@
 /// value. For example, `/api`, `/api/`, `/api//`, and `/api///` all normalize
 /// to `/api`.
 ///
-///
 /// # Examples
 ///
 /// ```
+/// use fastrust::canonicalize_path;
+///
 /// assert_eq!(canonicalize_path("/api"), "/api");
 /// assert_eq!(canonicalize_path("/api/"), "/api");
 /// assert_eq!(canonicalize_path("/api///"), "/api");
