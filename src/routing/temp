@@ -1,0 +1,19 @@
+Schema(
+    Object {
+        "$schema": String("https://json-schema.org/draft/2020-12/schema"),
+        "maxItems": Number(2),
+        "minItems": Number(2),
+        "prefixItems": Array [
+            Object {
+                "format": String("int32"),
+                "type": String("integer")
+            },
+            Object {
+                "format": String("int32"),
+                "type": String("integer")
+            }
+        ],
+        "title": String("Tuple_of_int32_and_int32"),
+        "type": String("array")
+    }
+)
