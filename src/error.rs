@@ -6,12 +6,16 @@ use std::fmt;
 ///
 /// This enum represents the various error conditions that can occur
 /// when using the fastrust framework.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     /// Invalid route configuration (e.g., overlapping routes).
     RouteError(String),
     /// Invalid server configuration (e.g., invalid host/port).
     ServerError(String),
+    /// Failed to parse socket address.
+    AddressError(String),
+    /// Failed to bind to the socket address.
+    BindError(String),
     /// OpenAPI specification generation failed.
     OpenApiError(String),
     /// Internal error.
@@ -23,6 +27,8 @@ impl fmt::Display for Error {
         match self {
             Error::RouteError(msg) => write!(f, "Route error: {msg}"),
             Error::ServerError(msg) => write!(f, "Server error: {msg}"),
+            Error::AddressError(msg) => write!(f, "Address error: {msg}"),
+            Error::BindError(msg) => write!(f, "Bind error: {msg}"),
             Error::OpenApiError(msg) => write!(f, "OpenAPI error: {msg}"),
             Error::Internal(msg) => write!(f, "Internal error: {msg}"),
         }

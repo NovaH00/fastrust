@@ -54,7 +54,8 @@ async fn main() {
         .set_host("0.0.0.0")
         .set_port(6969)
         .register_router(v1)
-        .run().await;
+        .run().await
+        .unwrap(); // Or do error handling. See With app state example 
 }
 ```
 
@@ -93,10 +94,13 @@ async fn main() {
         counter: Arc::new(Mutex::new(0))
     };
 
-    APIApp::new_with_state(state)
+    let app = APIApp::new_with_state(state)
         .set_title("fastrust app")
-        .register_router(root)
-        .run().await;
+        .register_router(root);
+    
+    if let Err(fastrust::Error::BindError(_)) = app.run().await {
+        panic!("Address already in used!")
+    };
 }
 ```
 
@@ -142,7 +146,7 @@ async fn create_user(Json(body): Json<CreateUser>) -> Json<User> {
 #[tokio::main]
 async fn main() {
     let mut api = APIRouter::new("/api");
-    
+
     api.get(
         "/user/{id}",
         get_user,
@@ -151,7 +155,7 @@ async fn main() {
             .response::<User>(200, "User found")
             .empty_response(404, "User not found")
     );
-    
+
     api.post(
         "/user",
         create_user,
@@ -168,7 +172,8 @@ async fn main() {
         // OpenAPI spec available at /openapi.json (default)
         // Swagger UI available at /docs (default)
         .register_router(api)
-        .run().await;
+        .run().await
+        .unwrap();
 }
 ```
 
@@ -177,12 +182,16 @@ Visit `http://localhost:8080/docs` to interact with your API documentation.
 ### Customizing OpenAPI and docs paths
 
 ```rust
-APIApp::new()
-    .set_title("My API")
-    .set_openapi_path("/api-spec.json")  // Custom OpenAPI JSON path
-    .set_docs_path("/swagger")           // Custom Swagger UI path
-    .register_router(api)
-    .run().await;
+#[tokio::main]
+async fn main() {
+    APIApp::new()
+        .set_title("My API")
+        .set_openapi_path("/api-spec.json")  // Custom OpenAPI JSON path
+        .set_docs_path("/swagger")           // Custom Swagger UI path
+        .register_router(api)
+        .run().await
+        .unwrap();
+}
 ```
 
 ## Configuration

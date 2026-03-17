@@ -3,6 +3,7 @@ use tower_http::normalize_path::NormalizePathLayer;
 use crate::APIRouter;
 use crate::middleware::log_request;
 use crate::RouteConfig;
+use crate::error::{Error, Result};
 use std::net::SocketAddr;
 use tracing::info;
 use super::builder::APIApp;
@@ -24,12 +25,11 @@ where
     /// 6. Binds to the configured host and port
     /// 7. Starts serving requests
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// This method will panic if:
-    /// - The host:port address is invalid
-    /// - The server fails to bind to the address
-    /// - The server encounters a fatal error while running
+    /// Returns an error if:
+    /// - The host:port address is invalid ([`Error::AddressError`])
+    /// - The server fails to bind to the address ([`Error::BindError`])
     ///
     /// # Examples
     ///
@@ -37,7 +37,7 @@ where
     /// use fastrust::{APIApp, APIRouter, RouteConfig};
     ///
     /// #[tokio::main]
-    /// async fn main() {
+    /// async fn main() -> fastrust::Result<()> {
     ///     let mut api = APIRouter::new("/api");
     ///     // Add routes...
     ///
@@ -45,7 +45,7 @@ where
     ///         .set_title("My API")
     ///         .set_port(8080)
     ///         .register_router(api)
-    ///         .run().await;
+    ///         .run().await
     /// }
     /// ```
     ///
@@ -55,7 +55,7 @@ where
     /// - Port: `6969`
     /// - OpenAPI path: `/openapi.json`
     /// - Docs path: `/docs`
-    pub async fn run(self) {
+    pub async fn run(self) -> Result<()> {
         tracing_subscriber::fmt().with_target(false).init();
 
         let openapi_json = self.generate_openapi_str();
@@ -65,7 +65,9 @@ where
 
         let host = self.host.clone().unwrap_or_else(|| "127.0.0.1".to_owned());
         let port = self.port.unwrap_or(6969);
-        let addr: SocketAddr = format!("{}:{}", host, port).parse().expect("Invalid address");
+        let addr: SocketAddr = format!("{}:{}", host, port)
+            .parse()
+            .map_err(|e: std::net::AddrParseError| Error::AddressError(e.to_string()))?;
 
         let openapi_handler = move |axum::extract::State(_): axum::extract::State<S>| async move {
             (
@@ -111,11 +113,17 @@ where
             .layer(NormalizePathLayer::trim_trailing_slash())
             .with_state(self.state);
 
-        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        let listener = tokio::net::TcpListener::bind(addr)
+            .await
+            .map_err(|e| Error::BindError(e.to_string()))?;
 
         info!("Server listening on http://{}", addr);
         info!("Swagger UI available at http://{}{}", addr, docs_path);
 
-        axum::serve(listener, axum_router).await.unwrap();
+        axum::serve(listener, axum_router)
+            .await
+            .map_err(|e| Error::BindError(e.to_string()))?;
+
+        Ok(())
     }
 }
